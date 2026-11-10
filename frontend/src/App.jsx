@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { api, setAccessToken } from './api';
+import LandingPage from './LandingPage';
 
 const money = (cents) => {
   const value = BigInt(cents ?? 0);
@@ -17,6 +18,8 @@ function Field({ label, ...props }) { return <label className="field"><span>{lab
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [view, setView] = useState('landing');
+  const [authMode, setAuthMode] = useState('login');
   const [page, setPage] = useState('Dashboard');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -49,13 +52,27 @@ export default function App() {
 
   async function signOut() {
     await run(() => api('/api/auth/logout', { method: 'POST' }), 'Signed out.');
-    setAccessToken(null); setUser(null); setPage('Dashboard');
+    setAccessToken(null); setUser(null); setPage('Dashboard'); setView('landing');
   }
 
-  if (!user) return <AuthScreen busy={busy} error={error} onAuth={async (mode, form) => {
-    const result = await run(() => api(`/api/auth/${mode}`, { method: 'POST', body: form }));
-    if (result) { setAccessToken(result.accessToken); setUser(result.user); setPage('Dashboard'); }
-  }} />;
+  if (!user) {
+    if (view === 'landing') {
+      return <LandingPage onTry={(mode) => { if (mode) setAuthMode(mode); setView('auth'); setError(''); setNotice(''); }} />;
+    }
+    return (
+      <AuthScreen
+        mode={authMode}
+        setMode={setAuthMode}
+        busy={busy}
+        error={error}
+        onBack={() => { setView('landing'); setError(''); setNotice(''); }}
+        onAuth={async (mode, form) => {
+          const result = await run(() => api(`/api/auth/${mode}`, { method: 'POST', body: form }));
+          if (result) { setAccessToken(result.accessToken); setUser(result.user); setPage('Dashboard'); }
+        }}
+      />
+    );
+  }
 
   const isAdmin = user.roles?.includes('ADMIN');
   const links = ['Dashboard', 'Onboarding', 'Account', 'Ledger', 'Transfer', ...(isAdmin ? ['Admin', 'Audit log'] : [])];
@@ -82,11 +99,77 @@ export default function App() {
   </div>;
 }
 
-function AuthScreen({ busy, error, onAuth }) {
-  const [mode, setMode] = useState('login');
+function AuthScreen({ mode = 'login', setMode, busy, error, onAuth, onBack }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  return <div className="auth-page"><div className="auth-aside"><div className="brand light"><span className="brand-mark">B</span><span>BalanceVault<small>ACCOUNT PLATFORM</small></span></div><div className="hero-copy"><p className="eyebrow">MONEY MOVEMENT, MADE TRACEABLE</p><h1>Every movement<br />has a record.</h1><p>Account management with ownership checks, an auditable double-entry ledger, and clear operational controls.</p></div><div className="auth-disclaimer">HACKATHON DEMONSTRATION · SYNTHETIC DATA ONLY</div></div><div className="auth-panel"><div className="auth-card"><p className="eyebrow">WELCOME TO BALANCEVAULT</p><h2>{mode === 'login' ? 'Sign in to your account' : 'Create an account'}</h2><p className="muted">Use a demo account or register a new account holder.</p><ErrorLine>{error}</ErrorLine><form onSubmit={(event) => { event.preventDefault(); onAuth(mode, { email, password }); }}><Field label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /><Field label="Password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} minLength={mode === 'login' ? 1 : 12} required /><button className="primary full" disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}</button></form><div className="auth-switch">{mode === 'login' ? 'New to BalanceVault?' : 'Already registered?'} <button onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>{mode === 'login' ? 'Create an account' : 'Sign in'}</button></div><div className="security-note"><span>●</span> Protected session · HTTP-only refresh cookie</div></div></div></div>;
+  return (
+    <div className="auth-page">
+      <div className="auth-aside">
+        <div className="auth-aside-top">
+          <button className="auth-back-btn" onClick={onBack}>
+            ← Back to Overview
+          </button>
+        </div>
+        <div className="brand light">
+          <div className="edgar-logo-mark small">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="18" height="18" rx="4" stroke="#00e5ff" strokeWidth="2.2" />
+              <path d="M12 7V17M7 12H17" stroke="#3dec63" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <span>BalanceVault<small>AUDITABLE LEDGER ENGINE</small></span>
+        </div>
+        <div className="hero-copy">
+          <p className="eyebrow cyan">SEE FOR YOURSELF, FOR FREE*</p>
+          <h1>Every movement<br />has a record.</h1>
+          <p>Account management with strict ownership checks, an auditable double-entry ledger, and immutable operational controls.</p>
+        </div>
+        <div className="auth-quick-creds">
+          <span className="quick-creds-title">Quick Demo Login:</span>
+          <div className="quick-creds-pills">
+            <button
+              type="button"
+              className="quick-pill"
+              onClick={() => { setEmail('admin@example.test'); setPassword('rukus-admin-password'); }}
+            >
+              Fill Admin
+            </button>
+            <button
+              type="button"
+              className="quick-pill"
+              onClick={() => { setEmail('demo@example.test'); setPassword('demo-user-password-please-change'); }}
+            >
+              Fill User
+            </button>
+          </div>
+        </div>
+        <div className="auth-disclaimer">HACKATHON DEMONSTRATION · SYNTHETIC DATA ONLY</div>
+      </div>
+      <div className="auth-panel">
+        <div className="auth-card">
+          <button type="button" className="mobile-back-link" onClick={onBack}>← Back to Overview</button>
+          <p className="eyebrow">WELCOME TO BALANCEVAULT</p>
+          <h2>{mode === 'login' ? 'Sign in to your account' : 'Create an account'}</h2>
+          <p className="muted">Use a pre-seeded demo account or register a new identity.</p>
+          <ErrorLine>{error}</ErrorLine>
+          <form onSubmit={(event) => { event.preventDefault(); onAuth(mode, { email, password }); }}>
+            <Field label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Field label="Password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} minLength={mode === 'login' ? 1 : 12} required />
+            <button className="link-btn green full auth-submit-btn" disabled={busy}>
+              <span className="link-btn-text">{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}</span>
+              <span className="hover-link-btn-text-container">
+                <span className="hover-link-btn-text">{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}</span>
+              </span>
+            </button>
+          </form>
+          <div className="auth-switch">
+            {mode === 'login' ? 'New to BalanceVault?' : 'Already registered?'} <button type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>{mode === 'login' ? 'Create an account' : 'Sign in'}</button>
+          </div>
+          <div className="security-note"><span>●</span> Protected session · HTTP-only refresh cookie</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Dashboard({ run }) {
