@@ -29,5 +29,6 @@ if (!parsed.success) {
 
 export const config = {
   ...parsed.data,
+  WEB_ORIGIN: parsed.data.WEB_ORIGIN.replace(/\/+$/, ''),
   COOKIE_SECURE: parsed.data.COOKIE_SECURE === 'true' || parsed.data.NODE_ENV === 'production' || parsed.data.COOKIE_SAME_SITE === 'none',
 };

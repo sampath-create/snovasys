@@ -26,7 +26,18 @@ export function createApp({ redisClient = null } = {}) {
   app.set('json replacer', (_key, value) => typeof value === 'bigint' ? value.toString() : value);
   app.set('trust proxy', config.NODE_ENV === 'production' ? 1 : false);
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-  app.use(cors({ origin: config.WEB_ORIGIN, credentials: true, methods: ['GET', 'POST', 'PATCH', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization', 'X-Bootstrap-Token', 'X-Request-Id'] }));
+  const allowedOrigin = config.WEB_ORIGIN.replace(/\/+$/, '');
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || origin.replace(/\/+$/, '') === allowedOrigin) {
+        return callback(null, origin || allowedOrigin);
+      }
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Bootstrap-Token', 'X-Request-Id'],
+  }));
   app.use(express.json({ limit: '32kb' }));
   app.use(cookieParser());
   app.use((req, res, next) => {

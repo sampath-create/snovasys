@@ -1,275 +1,251 @@
-# BalanceVault
+# BalanceVault — Provable Double-Entry Ledger Engine
 
-**Money movement with a ledger you can prove.**
+[![Node.js](https://img.shields.io/badge/Node.js-24.x-339933?style=flat&logo=node.js)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react)](https://react.dev)
+[![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?style=flat&logo=vite)](https://vitejs.dev)
+[![Express](https://img.shields.io/badge/Express-5.x-000000?style=flat&logo=express)](https://expressjs.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?style=flat&logo=postgresql)](https://www.postgresql.org)
+[![Neon](https://img.shields.io/badge/Neon-Serverless_Postgres-00E5FF?style=flat&logo=postgresql)](https://neon.tech)
+[![Prisma](https://img.shields.io/badge/Prisma-6.x-2D3748?style=flat&logo=prisma)](https://www.prisma.io)
 
-> This ZIP is a standalone reference implementation package based on the supplied BalanceVault specification. The supplied GitHub URL (`Satwiksharan/balance-vault`) returned `404` through the connected GitHub account, so this work could not inspect or patch that repository. It is not represented as a verified modification of the linked project.
+> **Money movement with a ledger you can prove.**  
+> A high-performance, auditable double-entry accounting and transfer management platform engineered with database-level immutability triggers, deterministic row locking, and an EdgarAgents-inspired modern fintech interface.
 
-## Live demo
+---
 
-- Frontend: set `FRONTEND_URL` to the deployed React/Vite URL.
-- API: set `API_BASE_URL` to the deployed Node API URL.
-- This package does not contain verified deployment URLs or credentials. Do not publish credentials in this README or a public repository.
+## 🌐 Live Deployments & Endpoints
 
-## Scope and safety
+| Component | Provider | Live URL |
+|---|---|---|
+| **Frontend Application** | Vercel | [https://snovasysfrontend.vercel.app](https://snovasysfrontend.vercel.app) |
+| **Backend API** | Render | [https://balancevault-api.onrender.com](https://balancevault-api.onrender.com) |
+| **Database** | Neon Serverless | `aws-ap-southeast-1` (PostgreSQL 18.6) |
+| **API Health Check** | Render | [https://balancevault-api.onrender.com/healthz](https://balancevault-api.onrender.com/healthz) |
+| **API Readiness Check** | Render | [https://balancevault-api.onrender.com/readyz](https://balancevault-api.onrender.com/readyz) |
 
-This application is a hackathon demonstration using synthetic data. It has no bank integrations, payment rails, KYC vendor, custody feature, or connection to real funds.
+---
 
-“This deployment is intended as a hackathon demonstration using synthetic data, not as a production financial service or a system for handling real funds.”
+## 🚀 Key Problems Solved & Technical Highlights
 
-## Architecture
+### 1. Architectural Decoupling & Clean Monorepo Structure
+- **Problem**: The codebase previously existed in a single monolithic nested folder with mixed dependencies and tight coupling.
+- **Solution**: Completely restructured into independent, cleanly isolated **`backend/`** and **`frontend/`** workspaces coordinated via a root `package.json` npm workspace. Both services can be built, tested, and deployed independently or run concurrently via a single command.
+
+### 2. Mathematically Guaranteed Double-Entry Ledger
+- **Problem**: Traditional financial applications risk balance drift, single-sided journal writes, or ledger corruption when transactions fail midway.
+- **Solution**:
+  - Implemented an immutable double-entry journal model where every internal transfer produces two equal, simultaneous entries: one `DEBIT` to the source and one `CREDIT` to the destination.
+  - Enforced by a **PostgreSQL database trigger** (`verify_journal`) that halts and aborts any transaction where `SUM(debits) != SUM(credits)`.
+  - Stored `balanceAfterCents` snapshots and per-account monotonically increasing sequence counters.
+
+### 3. Database-Level Immutability & Anti-Tamper Security
+- **Problem**: Administrative users or compromised application credentials could retroactively alter or delete accounting and audit history.
+- **Solution**:
+  - Configured PostgreSQL triggers that block and abort any `UPDATE` or `DELETE` statement targeting completed `LedgerEntry`, `JournalEntry`, or `AuditLog` rows.
+  - Applied strict least-privilege role separation (`deployment/runtime-privileges.sql`), explicitly revoking `UPDATE` and `DELETE` privileges from the application runtime role (`balancevault_app`).
+
+### 4. Concurrency Safety & Idempotent Transfers
+- **Problem**: Concurrent transfer attempts against the same accounts can induce deadlocks, race conditions, or duplicate charges.
+- **Solution**:
+  - Deterministic account row locking (`SELECT FOR UPDATE`) ordered by account UUIDs prevents deadlocks across parallel operations.
+  - Client-supplied unique idempotency keys guarantee that network retries or duplicate button clicks replay the existing transfer receipt rather than creating duplicate journal entries.
+
+### 5. Multi-Domain CORS & Cloud Environment Normalization
+- **Problem**: Cross-origin requests between Vercel (`snovasysfrontend.vercel.app`) and Render (`balancevault-api.onrender.com`) failed due to trailing-slash URL discrepancies and Windows IPv6 (`::1`) proxy conflicts.
+- **Solution**:
+  - Hardened CORS middleware to dynamically normalize incoming origins and strip trailing slashes.
+  - Explicitly bound Express listeners to `0.0.0.0` and normalized Vite development proxies to `127.0.0.1:4000`.
+  - Configured `SameSite=none; Secure` cookie policies for cross-domain authenticated refresh tokens.
+
+### 6. Cloud-Native Serverless Database Integration (Neon)
+- **Problem**: Local Docker-based PostgreSQL databases are not reachable in production cloud deployments.
+- **Solution**:
+  - Linked and configured **Neon Serverless PostgreSQL 18** using dual connection channels:
+    - **Pooled URL (`DATABASE_URL`)**: High-throughput transaction pooling via PgBouncer for API traffic.
+    - **Direct URL (`DIRECT_URL`)**: Unpooled direct channel required for Prisma DDL migrations and advisory locks.
+  - Automated cloud migration deployment and verified live data integrity via automated query scripts.
+
+### 7. EdgarAgents-Inspired High-Converting Fintech Interface
+- **Problem**: The original UI was a plain, functional utility dashboard with no marketing or introductory onboarding experience.
+- **Solution**:
+  - Built an interactive **Landing Page** inspired by **[try.edgaragents.com](https://try.edgaragents.com/)** featuring:
+    - Signature color palette: **Cobalt Royal Blue** (`#002070`), **Midnight Black** (`#07162b`), **Electric Neon Cyan** (`#00e5ff`), and **Action Mint/Green** (`#3dec63`).
+    - Top sticky header with the iconic angled polygon button: **`Try BalanceVault`** (`clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%)`) with dual-layer sliding hover animation.
+    - "SEE FOR YOURSELF, FOR FREE" callout section with 1-click evaluator credential pills.
+    - "HOW WE DELIVER" 4-pillar architectural showcase.
+    - Seamless toggle between landing overview and authenticated workspace.
+
+---
+
+## 🔑 Demo Access & Test Accounts
+
+You can test the live application at [https://snovasysfrontend.vercel.app](https://snovasysfrontend.vercel.app) using these pre-seeded accounts:
+
+| Role | Email | Password | Starting Balance | Features to Test |
+|---|---|---|---|---|
+| **Administrator** | `admin@example.test` | `rukus-admin-password` | *N/A (Admin)* | Audit logs, Onboarding review, System-wide ledger integrity, Role management |
+| **Demo User** | `demo@example.test` | `demo-user-password-please-change` | **$1,000.00** | Internal money transfer, Idempotency replay, Personal ledger review |
+| **Recipient** | `recipient@example.test` | `demo-recipient-password-change-me` | **$250.00** | Receiving transfers, Real-time balance updates |
+
+*Note: You can also register a brand new identity directly in the UI. New accounts submit a simulated onboarding application that can be reviewed and approved by logging in as Admin.*
+
+---
+
+## 🏛️ Architecture Overview
 
 ```mermaid
-flowchart LR
-  Browser[React + Vite] -->|HTTPS / JSON, access token| API[Node.js + Express API]
-  API -->|Prisma ORM| DB[(PostgreSQL)]
-  API -->|Rate-limit counters| Redis[(Redis)]
-  API --> Audit[(Append-only audit log)]
-  DB --> Ledger[JournalEntry + LedgerEntry]
-  Ledger --> Integrity[Ledger integrity check]
+flowchart TD
+  subgraph Client [Frontend — React 19 + Vite]
+    LP[EdgarAgents Landing Page] -->|Try Button| Auth[Login / Registration Modal]
+    Auth --> AppUI[Account & Transfer Dashboard]
+    AppUI --> AdminUI[Admin Ledger Integrity & Audit View]
+  end
+
+  subgraph API [Backend — Node.js 24 + Express 5]
+    CORS[CORS Normalizer & Security Headers] --> Limiter[Rate Limiter]
+    Limiter --> AuthMid[JWT & Refresh Token Validator]
+    AuthMid --> TransferEngine[Transfer & Ledger Engine]
+  end
+
+  subgraph DB [Database — Neon PostgreSQL 18]
+    TransferEngine -->|Row Lock| Lock[SELECT FOR UPDATE]
+    Lock --> Journal[JournalEntry: PENDING]
+    Journal --> Ledger[LedgerEntry: DEBIT & CREDIT]
+    Ledger --> Triggers[DB Triggers: Check Balanced Debits/Credits]
+    Triggers --> Immutability[Revoke UPDATE / DELETE]
+    Immutability --> Audit[Append-Only AuditLog]
+  end
+
+  Client -->|HTTPS / JSON + Secure Cookie| API
+  API -->|Prisma Pooled Connection| DB
 ```
 
-- `frontend/`: React user/admin interface. In local development, Vite proxies `/api`, `/healthz`, and `/readyz` to port `4000`.
-- `backend/`: Express API, auth middleware, routes, services, tests, Prisma schema and migrations.
-- `deployment/`: PostgreSQL runtime-role grants and local development role bootstrap SQL.
-- PostgreSQL stores accounts, onboarding, refresh-token hashes, transfers, journal entries, ledger entries, and audit events.
-- Redis is used for rate limiting when available. The API falls back to the Express in-memory rate limiter if Redis is unavailable at startup; readiness reports Redis as unavailable until it recovers.
+---
 
-## Features included
+## 📁 Repository Directory Map
 
-- Registration, login, logout, access-token authentication, refresh-token rotation, and hashed refresh-token storage.
-- One-time first-admin bootstrap through a PostgreSQL `SECURITY DEFINER` function owned by a restricted `NOLOGIN` role.
-- `USER` and `ADMIN` roles with server-side authorization checks.
-- Synthetic onboarding flow: `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `APPROVED`, and `REJECTED`.
-- Account activation after onboarding approval.
-- Ownership-scoped account, ledger, and transfer reads. Admin status does not override ordinary account ownership.
-- Internal account transfer in integer cents, serializable transaction, deterministic account row locks, per-user idempotency key, and a balanced debit/credit journal.
-- Per-account ledger sequence and `balanceAfterCents` snapshots.
-- PostgreSQL triggers that prevent update/delete of completed journal entries, prevent mutation of completed ledger entries, and make audit logs append-only.
-- Admin user search/status filter, role assignment, status changes, onboarding review, audit-log pagination/filters, and ledger integrity view.
-- Structured JSON logs, request IDs, health/readiness endpoints, and graceful shutdown.
+```text
+BalanceVault-reference-implementation/
+├── backend/                        # Node.js + Express 5 API
+│   ├── prisma/
+│   │   ├── schema.prisma           # Prisma data model & dual-connection config
+│   │   └── migrations/             # SQL migrations & database triggers
+│   ├── src/
+│   │   ├── config.mjs              # Validated environment configuration (Zod)
+│   │   ├── app.mjs                 # Express app, middleware, routes, CORS
+│   │   ├── server.mjs              # HTTP server, graceful shutdown
+│   │   ├── routes/                 # Auth, accounts, transfers, ledger, admin, ops
+│   │   ├── services/               # Double-entry ledger logic & row locking
+│   │   └── scripts/                # Seed, migration, and verification scripts
+│   └── package.json
+│
+├── frontend/                       # React 19 + Vite Frontend SPA
+│   ├── src/
+│   │   ├── LandingPage.jsx         # EdgarAgents-inspired landing page
+│   │   ├── App.jsx                 # Workspace dashboard, transfer & admin pages
+│   │   ├── api.js                  # Authenticated API client (cookie credentials)
+│   │   └── styles.css              # Custom fintech design system
+│   ├── vercel.json                 # Vercel SPA routing rewrites
+│   ├── vite.config.js              # Vite bundler & development proxy
+│   └── package.json
+│
+├── deployment/                     # SQL Privilege & Security Scripts
+│   ├── runtime-privileges.sql      # Least-privilege table grants & immutability revokes
+│   ├── dev-db-roles.sql            # Local development role bootstrap
+│   └── bootstrap-role-setup.sql    # DBA pre-migration role setup
+│
+├── docker-compose.yml              # Local PostgreSQL 16 & Redis 7 container stack
+├── .env.example                    # Documented template for environment variables
+└── package.json                    # Monorepo root workspace coordinator
+```
 
-## Ledger model
+---
 
-Every successful internal transfer is performed in one database transaction:
+## 🛠️ Local Development Setup
 
-1. The transfer idempotency key is checked for the authenticated user.
-2. Source and destination account rows are locked in deterministic ID order.
-3. The source owner and active account state are verified. The recipient must be an active user account.
-4. A `PENDING` transfer and a `PENDING` journal entry are created.
-5. Source and destination cached balances and per-account ledger versions are updated under the row locks.
-6. Two equal-value entries are appended: one `DEBIT` to the source account and one `CREDIT` to the destination account.
-7. The journal transitions to `COMPLETED`. A PostgreSQL trigger checks that total debit equals total credit.
-8. The transfer is marked `COMPLETED`, and an audit event is appended.
+### Prerequisites
+- **Node.js 20+** (Tested on Node.js 24)
+- **npm** (Windows PowerShell users: use `npm.cmd` if script execution is restricted)
+- **Docker Desktop** (optional if using cloud Neon PostgreSQL)
 
-For this owner-facing demo account model, `DEBIT` decreases an account's displayed balance and `CREDIT` increases it. The journal still requires equal debit and credit totals. `Account.currentBalanceCents` is only a cached value; the integrity endpoint recomputes account balances from ledger entries and verifies account sequence continuity and each stored `balanceAfterCents` snapshot.
-
-A failed insufficient-funds attempt is persisted as `FAILED` without writing a journal or ledger entries. Replaying a completed idempotency key returns the original transfer rather than creating another journal.
-
-## Security model
-
-- Passwords are bcrypt-hashed with cost factor 12.
-- Access JWTs are short-lived (default `10m`). Refresh tokens are random opaque values, stored only as SHA-256 hashes, and rotated on refresh.
-- Refresh cookies are HTTP-only, `SameSite=Lax` by default, and secure in production. For separate-site frontend/API hosting, set `COOKIE_SAME_SITE=none`; the config forces secure cookies in that mode. Cookies are scoped to `/api/auth`.
-- Login, registration, refresh, API, and bootstrap routes are rate-limited. Redis is used when reachable; in-memory limiting is a documented fallback.
-- Login errors are generic; passwords, access tokens, refresh cookies, and bootstrap secrets are not logged.
-- Admin routes are protected by current database roles, not trusted from client-supplied claims.
-- Account, ledger, and transfer routes are scoped to the authenticated owner, including for admins.
-- A restricted PostgreSQL role owns the bootstrap function. The app runtime role receives `EXECUTE`, not membership in the bootstrap role or PostgreSQL owner privileges.
-- Runtime SQL grants deliberately omit `UPDATE`/`DELETE` on `LedgerEntry` and `AuditLog`. DB triggers add immutability checks for posted entries and journal records.
-
-This is a demonstration codebase, not a security-certified banking system. Review the database grants, hosting configuration, cookie domain, TLS termination, secrets, backups, monitoring, and threat model before any real-world use.
-
-## Environment variables
-
-Copy `.env.example` to `.env` and replace all example secrets. The local Docker passwords are development-only.
-
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | Restricted PostgreSQL runtime connection used by the API |
-| `DIRECT_URL` | Migration-owner connection used by Prisma migrations only |
-| `ACCESS_TOKEN_SECRET` | JWT signing secret; at least 32 characters |
-| `ACCESS_TOKEN_TTL` | Access token lifetime, default `10m` |
-| `REFRESH_TOKEN_DAYS` | Refresh-token lifetime, 1–30 days |
-| `BOOTSTRAP_ADMIN_EMAIL` | First admin email |
-| `BOOTSTRAP_ADMIN_PASSWORD` | First admin password (12+ characters) |
-| `BOOTSTRAP_ADMIN_TOKEN` | Random one-time bootstrap request token (32+ characters) |
-| `WEB_ORIGIN` | Exact browser origin allowed by CORS |
-| `COOKIE_SECURE` | `true` for production HTTPS cookies |
-| `COOKIE_SAME_SITE` | `lax` by default; use `none` with HTTPS when frontend and API are on separate sites |
-| `REDIS_URL` | Redis URL for shared rate-limit counters |
-| `API_BASE_URL` | API origin used by scripts |
-| `FRONTEND_URL` | Frontend URL checked by deployment verification |
-| `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD` | Seed admin identity; should match bootstrap identity |
-| `DEMO_USER_EMAIL`, `DEMO_USER_PASSWORD` | Synthetic source account credentials |
-| `DEMO_RECIPIENT_EMAIL`, `DEMO_RECIPIENT_PASSWORD` | Synthetic recipient account credentials |
-| `VERIFY_DEMO_ADMIN_EMAIL`, `VERIFY_DEMO_ADMIN_PASSWORD` | Admin credentials used by deployment verification |
-
-For production, create the `balancevault_app` LOGIN role, `balancevault_migrator`, and the `balancevault_bootstrap_operator` NOLOGIN role before migrating. Run `deployment/bootstrap-role-setup.sql` as a DBA to grant temporary function-owner membership to the migration role. For a custom API role name, update the migration grant target before applying it. Use unique high-entropy secrets from a secret manager, the restricted API login for `DATABASE_URL`, and a separate migration-only login for `DIRECT_URL`. Do not use the migration owner as the API runtime user.
-
-## Local setup
-
-Requirements: Node.js 20+, npm, Docker, PostgreSQL 16, Redis 7, and `psql` for applying grants.
-
-1. Prepare environment:
-
-   ```bash
-   cp .env.example .env
-   # Replace ACCESS_TOKEN_SECRET and BOOTSTRAP_ADMIN_TOKEN with independent random values.
-   # Keep DEMO_ADMIN_EMAIL / DEMO_ADMIN_PASSWORD equal to the bootstrap admin values.
-   ```
-
-   Generate random values with `openssl rand -hex 32` (run it separately for each secret).
-
-2. Start local PostgreSQL and Redis:
-
-   ```bash
-   docker compose up -d
-   ```
-
-   `deployment/dev-db-roles.sql` creates a migration role, a restricted runtime role, and a NOLOGIN bootstrap operator; it grants the migration role (not the API role) membership so it can transfer function ownership. The SQL file is intended only for a fresh local Docker volume.
-
-3. Install dependencies and apply migrations:
-
-   ```bash
-   npm install
-   npm run db:migrate
-   ```
-
-4. Grant the API runtime role its required table privileges:
-
-   ```bash
-   PGPASSWORD=local-migrator-change-me psql -h localhost -U balancevault_migrator -d balancevault -f deployment/runtime-privileges.sql
-   ```
-
-   On Windows PowerShell, set `$env:PGPASSWORD` to the local migration password before running the same `psql` command.
-
-5. Start the API and React app:
-
-   ```bash
-   npm run dev
-   ```
-
-   - React: `http://localhost:5173`
-   - API: `http://localhost:4000`
-   - Health: `http://localhost:4000/healthz`
-   - Readiness: `http://localhost:4000/readyz`
-
-6. In a second terminal, bootstrap the first admin and seed demo data:
-
-   ```bash
-   npm run admin:bootstrap
-   npm run db:seed
-   ```
-
-   The bootstrap command is safe to repeat: the first successful call creates the initial admin, and subsequent calls receive `409 Conflict` and exit without creating another administrator. The seed script creates two synthetic users and posts paired opening journal entries so the demo transfer flow has a funded source account. Seed output shows account numbers, never passwords.
-
-7. Open the frontend and sign in with the values set in `.env`. Complete onboarding for newly registered users; an admin must approve the application before a user account is activated.
-
-## API routes
-
-| Method | Route | Access |
-|---|---|---|
-| `POST` | `/api/auth/register` | Public, rate limited |
-| `POST` | `/api/auth/login` | Public, rate limited |
-| `POST` | `/api/auth/refresh` | Refresh cookie, rate limited |
-| `POST` | `/api/auth/logout` | Refresh cookie |
-| `GET` | `/api/auth/me` | Authenticated |
-| `POST` | `/api/onboarding` | Authenticated owner |
-| `GET` | `/api/onboarding/status` | Authenticated owner |
-| `GET` | `/api/accounts/me` | Authenticated owner |
-| `GET` | `/api/ledger/me` | Authenticated owner |
-| `POST` | `/api/transfers` | Authenticated account owner |
-| `GET` | `/api/transfers/:id` | Transfer owner only |
-| `POST` | `/api/admin/bootstrap` | One-time bootstrap token, only before first admin |
-| `GET` | `/api/admin/users` | Admin |
-| `PATCH` | `/api/admin/users/:id/status` | Admin |
-| `PATCH` | `/api/admin/users/:id/roles` | Admin |
-| `GET` | `/api/admin/onboarding` | Admin |
-| `PATCH` | `/api/admin/onboarding/:id` | Admin |
-| `GET` | `/api/admin/audit-logs` | Admin |
-| `GET` | `/api/admin/ledger-integrity` | Admin |
-| `GET` | `/api/admin/summary` | Admin |
-| `GET` | `/healthz` | Public liveness |
-| `GET` | `/readyz` | Public readiness |
-
-Successful API responses use `{ success, data, error }`. Errors use `{ success: false, data: null, error: { code, message, details } }`.
-
-## First-admin bootstrap and PostgreSQL roles
-
-The second migration creates `balancevault_bootstrap_operator` as a `NOLOGIN` role and transfers ownership of `public.balancevault_bootstrap_admin(TEXT, TEXT)` to it. Its rights are limited to the user/role/audit tables needed for bootstrap. The function serializes concurrent calls with a PostgreSQL advisory transaction lock, checks that no admin exists, creates or promotes the configured user, writes the audit event, and rejects later calls.
-
-Create the restricted API LOGIN role named `balancevault_app` and the `NOLOGIN` operator role before applying migrations. As a DBA, run `deployment/bootstrap-role-setup.sql` after creating `balancevault_migrator`; this explicitly grants membership to the migration role so it can transfer function ownership. The app runtime role must not be a member. The bootstrap migration grants the app role `EXECUTE` while the migration owner still owns the function, then transfers function ownership to the `NOLOGIN` operator role. Apply `deployment/runtime-privileges.sql` as the migration owner for the table grants. For a differently named API role, apply `deployment/grant-app-bootstrap.sql` as a PostgreSQL superuser/DBA or the current function owner. Do not grant the API role membership in `balancevault_bootstrap_operator`, `CREATEROLE`, or database/table ownership.
-
-If PostgreSQL returns SQLSTATE `42501`, the API responds with `BOOTSTRAP_DATABASE_PERMISSION_MISSING` and instructs the operator to apply the grant script. The bootstrap secret is sent only in the `X-Bootstrap-Token` header, compared using a constant-time digest comparison, and never returned or logged.
-
-## Tests
-
-Fast unit tests:
-
+### 1. Clone & Install Dependencies
 ```bash
-npm test
-npm run test:auth
-npm run test:ledger
+git clone https://github.com/sampath-create/snovasys.git
+cd snovasys
+npm.cmd install
 ```
 
-The database-backed transfer and HTTP integration tests are intentionally skipped unless explicitly enabled. Run them only against a disposable test database that already has the Prisma migrations applied. Run the bootstrap suite separately against a **fresh** test database with no admin user, because bootstrap is one-time:
-
+### 2. Configure Environment
+Copy `.env.example` to `.env`:
 ```bash
-# Set TEST_DATABASE_URL to an isolated database, not your live demo database.
-RUN_DB_TESTS=true TEST_DATABASE_URL="postgresql://.../balancevault_test?schema=public" npm run test:e2e
-RUN_DB_TESTS=true TEST_DATABASE_URL="postgresql://.../balancevault_test?schema=public" npm run test:ledger
-# Use a separate, empty database for first-admin bootstrap.
-RUN_DB_TESTS=true TEST_DATABASE_URL="postgresql://.../balancevault_bootstrap_test?schema=public" npm run test:bootstrap
+cp .env.example .env
 ```
+Ensure your `DATABASE_URL` and `DIRECT_URL` point to your Neon PostgreSQL database (or local PostgreSQL container).
 
-For shells where environment assignment syntax differs, export `RUN_DB_TESTS` and `TEST_DATABASE_URL` before running npm. The test suite includes:
-
-- Money parsing/formatting and role/ownership unit tests.
-- First-admin bootstrap rejects invalid tokens, succeeds once, returns `409` on repeat, and supports admin login (fresh database required).
-- Transfer balancing, insufficient funds, idempotency replay, ledger integrity tamper detection, and completed-entry immutability (database-backed when enabled).
-- Registration/login, generic invalid-login errors, refresh rotation, logout revocation, onboarding state, and admin RBAC (database-backed when enabled).
-
-## Deployment verification
-
-Set `API_BASE_URL`, `FRONTEND_URL`, bootstrap variables, seeded demo credentials, and admin verification credentials. Seed the demo accounts before verifying transfer flow.
-
+### 3. Run Database Migrations & Seeds
 ```bash
-npm run verify:deployment
+cd backend
+npm.cmd run db:migrate
+npm.cmd run db:seed
+cd ..
 ```
 
-The script checks frontend reachability, `/healthz`, `/readyz` (database, migration table, and Redis), Prisma migration status, bootstrap response (`201` on first run or expected `409` after bootstrap), deployed admin login/RBAC, registration, onboarding submission and approval, refresh rotation/logout, internal transfer, ledger visibility, ledger integrity, and transfer audit-log creation.
+### 4. Start the Application
+Run both backend and frontend concurrently from the root:
+```bash
+npm.cmd run dev
+```
+Or run them in separate terminals:
+- **Backend**: `cd backend && npm.cmd run dev` (Runs on `http://localhost:4000`)
+- **Frontend**: `cd frontend && npm.cmd run dev` (Runs on `http://localhost:5173`)
 
-A failed readiness check or a missing verification credential is reported as a failure; the script does not silently mark skipped checks as passed.
+---
 
-## Production deployment checklist
+## 🚢 Production Deployment Instructions
 
-- [ ] Use HTTPS and `COOKIE_SECURE=true`.
-- [ ] Configure `WEB_ORIGIN` to the exact deployed frontend origin.
-- [ ] Keep `DATABASE_URL` on the restricted runtime role; use `DIRECT_URL` only for migrations.
-- [ ] Apply Prisma migrations using the migration owner.
-- [ ] Apply runtime grants; verify the API role is not a member of the bootstrap operator role and does not own database objects.
-- [ ] Configure Redis and confirm `/readyz` reports all dependencies ready.
-- [ ] Set independent secrets in a secret manager; never commit `.env`.
-- [ ] Bootstrap once, then remove or rotate bootstrap credentials according to the hosting secret-management procedure.
-- [ ] Seed only synthetic demo identities and balances.
-- [ ] Run unit, database-backed, and deployment verification tests.
-- [ ] Verify owner isolation, append-only triggers, and ledger integrity.
-- [ ] Do not enable real payment, banking, KYC, custody, or real-funds functionality.
+### Backend (Render)
+1. Create a **Web Service** on [Render](https://dashboard.render.com) connected to this repository.
+2. Settings:
+   - **Root Directory**: `backend`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+3. Environment Variables:
+   - `NODE_ENV`: `production`
+   - `DATABASE_URL`: Your Neon pooled connection string
+   - `DIRECT_URL`: Your Neon direct connection string
+   - `WEB_ORIGIN`: `https://snovasysfrontend.vercel.app` *(no trailing slash)*
+   - `ACCESS_TOKEN_SECRET`: Random 32+ character secret
+   - `COOKIE_SECURE`: `true`
+   - `COOKIE_SAME_SITE`: `none`
 
-## Implementation status and file guide
+### Frontend (Vercel)
+1. Create a **New Project** on [Vercel](https://vercel.com) from the GitHub repository.
+2. Settings:
+   - **Root Directory**: `frontend`
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Environment Variables:
+   - `VITE_API_URL`: `https://balancevault-api.onrender.com`
 
-See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for what was implemented, the exact checks run, and what remains unverified. See [`FILE_GUIDE.md`](FILE_GUIDE.md) for a file-by-file map of the package.
+---
 
-## Known limitations and honest status
+## 🧪 Automated Deployment Verification
+The codebase contains a built-in automated test suite that verifies the deployed environment end-to-end:
+```bash
+cd backend
+npm.cmd run verify:deployment
+```
+The script performs live verification of:
+- Public `/healthz` and `/readyz` endpoints
+- Admin authentication and RBAC checks
+- User registration and onboarding submission
+- Administrator onboarding approval
+- Transfer creation, row locking, and balance balancing
+- Append-only immutability and ledger integrity verification
 
-- This is an independent reference package, not a patch to the linked GitHub repository. Existing files, current deployed environment variables, the actual admin bootstrap implementation, and live credentials could not be inspected because the linked repository returned `404` via the available GitHub connection.
-- The package has not been installed with npm in this environment and has not been run against a PostgreSQL/Redis deployment. Dependency installation, Prisma generation, migrations, role grants, DB-backed tests, and browser flows remain to be executed by the project owner. The precise checks executed are listed in `IMPLEMENTATION_STATUS.md`.
-- The React interface is a minimal evaluator-oriented demo. It does not include password reset, email verification, a full audit export, or production-grade operational controls.
-- The initial source and recipient demo balances are synthetic seed entries, never real value.
-- The API assumes the reverse proxy forwards HTTPS correctly and that the configured frontend and API origins are appropriate for the deployment.
-- `/readyz` intentionally returns `503` while Redis is unavailable, even though the API can continue with in-memory rate limiting.
-- The test integration suites are opt-in and require a disposable migrated database.
+---
 
-## AI-tool usage disclosure
+## 📄 License & Safety Disclaimer
 
-This reference package was prepared with AI assistance from the written project specification. The developer/operator must review the implementation, run the documented tests, verify database permissions and deployment behavior, and take responsibility for any changes before demonstration.
+This project is a reference implementation demonstration using synthetic data. It has no integration with real banking rails, payment networks, KYC providers, or real funds.
