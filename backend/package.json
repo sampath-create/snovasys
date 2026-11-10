@@ -1,0 +1,39 @@
+{
+  "name": "@balancevault/backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.mjs",
+    "start": "node src/server.mjs",
+    "build": "node --check src/server.mjs && node --check src/app.mjs && node src/scripts/prisma.mjs generate",
+    "db:migrate": "node src/scripts/prisma.mjs migrate deploy",
+    "db:seed": "node src/scripts/seed.mjs",
+    "admin:bootstrap": "node src/scripts/admin-bootstrap.mjs",
+    "verify:deployment": "node src/scripts/verify-deployment.mjs",
+    "test": "node --test test/*.test.mjs",
+    "test:ledger": "node --test test/ledger.test.mjs",
+    "test:auth": "node --test test/auth.test.mjs",
+    "test:e2e": "node --test test/e2e.test.mjs",
+    "test:bootstrap": "node --test test/bootstrap.test.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pino": "^9.6.0",
+    "rate-limit-redis": "^4.2.1",
+    "redis": "^5.0.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.0",
+    "supertest": "^7.1.1"
+  }
+}

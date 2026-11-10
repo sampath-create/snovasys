@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  passwordHash           String
+  status                 String                  @default("ACTIVE")
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  roles                  UserRole[]
+  accounts               Account[]
+  refreshTokens          RefreshToken[]
+  transfers              Transfer[]
+  onboardingApplications OnboardingApplication[]
+  auditLogs              AuditLog[]              @relation("AuditActor")
+  reviewedApplications   OnboardingApplication[] @relation("OnboardingReviewer")
+
+  @@index([status])
+}
+
+model Role {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  users     UserRole[]
+}
+
+model UserRole {
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model Account {
+  id                   String        @id @default(cuid())
+  accountNumber        String        @unique
+  userId               String?
+  type                 String        @default("USER")
+  status               String        @default("INACTIVE")
+  currentBalanceCents  BigInt        @default(0)
+  ledgerVersion        BigInt        @default(0)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  user                 User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ledgerEntries        LedgerEntry[]
+  transfersFrom        Transfer[]    @relation("TransferSource")
+  transfersTo          Transfer[]    @relation("TransferDestination")
+
+  @@index([userId, status])
+}
+
+model JournalEntry {
+  id          String        @id @default(cuid())
+  reference   String        @unique
+  status      String        @default("PENDING")
+  description String
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+  completedAt DateTime?
+  entries     LedgerEntry[]
+  transfer    Transfer?
+
+  @@index([status, createdAt])
+}
+
+model LedgerEntry {
+  id               String       @id @default(cuid())
+  journalEntryId   String
+  accountId        String
+  side             String
+  amountCents      BigInt
+  balanceAfterCents BigInt
+  accountSequence   BigInt
+  createdAt        DateTime     @default(now())
+  journalEntry     JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  account          Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, createdAt])
+  @@index([journalEntryId])
+  @@unique([accountId, accountSequence])
+}
+
+model Transfer {
+  id             String       @id @default(cuid())
+  userId         String
+  fromAccountId  String
+  toAccountId    String
+  amountCents    BigInt
+  status         String       @default("PENDING")
+  idempotencyKey String
+  journalEntryId String?      @unique
+  failureCode    String?
+  createdAt      DateTime     @default(now())
+  completedAt    DateTime?
+  user           User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  fromAccount    Account      @relation("TransferSource", fields: [fromAccountId], references: [id], onDelete: Restrict)
+  toAccount      Account      @relation("TransferDestination", fields: [toAccountId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([fromAccountId, createdAt])
+}
+
+model RefreshToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  replacedById String?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String?
+  entityId   String?
+  requestId  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model OnboardingApplication {
+  id            String   @id @default(cuid())
+  userId        String
+  state         String   @default("DRAFT")
+  data          Json
+  reviewReason  String?
+  reviewedById  String?
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reviewedBy    User?    @relation("OnboardingReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([state, createdAt])
+}

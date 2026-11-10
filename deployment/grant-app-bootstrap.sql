@@ -1,0 +1,6 @@
+-- Optional grant for a custom API runtime role. Run this as a PostgreSQL
+-- superuser/DBA (or the current function owner), not as balancevault_migrator:
+-- function ownership is intentionally transferred to the NOLOGIN operator role.
+-- For the default role, the bootstrap migration already grants EXECUTE to
+-- balancevault_app. For a custom role, substitute its exact LOGIN role name.
+-- GRANT EXECUTE ON FUNCTION public.balancevault_bootstrap_admin(TEXT, TEXT) TO your_api_role;

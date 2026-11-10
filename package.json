@@ -1,0 +1,23 @@
+{
+  "name": "balancevault-demo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Synthetic-data account management demo with an auditable double-entry ledger",
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev": "concurrently -k \"npm --workspace backend run dev\" \"npm --workspace frontend run dev\"",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "test": "npm run test --workspace backend",
+    "test:ledger": "npm run test:ledger --workspace backend",
+    "test:auth": "npm run test:auth --workspace backend",
+    "test:e2e": "npm run test:e2e --workspace backend",
+    "test:bootstrap": "npm run test:bootstrap --workspace backend",
+    "db:migrate": "npm run db:migrate --workspace backend",
+    "db:seed": "npm run db:seed --workspace backend",
+    "admin:bootstrap": "npm run admin:bootstrap --workspace backend",
+    "verify:deployment": "npm run verify:deployment --workspace backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
