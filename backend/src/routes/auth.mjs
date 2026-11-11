@@ -40,7 +40,7 @@ router.post('/login', async (req, res) => {
   const email = parsed.data.email.trim().toLowerCase();
   const user = await prisma.user.findUnique({ where: { email }, include: { roles: { include: { role: true } } } });
   const valid = user ? await passwordMatches(parsed.data.password, user.passwordHash) : false;
-  if (!valid || user.status !== 'ACTIVE') {
+  if (!valid || !user || user.status !== 'ACTIVE') {
     await prisma.auditLog.create({ data: { actorId: user?.id ?? null, action: 'LOGIN_FAILURE', requestId: req.id, metadata: { emailFingerprint: createHash('sha256').update(email).digest('hex') } } });
     throw new AppError(401, 'AUTHENTICATION_FAILED', 'Email or password is incorrect.');
   }
