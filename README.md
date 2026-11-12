@@ -25,6 +25,35 @@
 
 ---
 
+## 🛠️ Recent Improvements & Rectifications (AI-Assisted)
+
+During continuous evaluation and code auditing, we identified and rectified several real-world fintech edge cases using AI:
+
+1. **Standardized Currency to INR (₹)**
+   - Switched frontend and backend from USD to **Indian Rupees (INR)**.
+   - Formatted all amounts with Indian numbering locale (`en-IN`) and two-decimal paise precision (`₹1,000.00`).
+   - Updated transfer forms and landing page cards to default to INR.
+
+2. **Fixed Transfer Idempotency Key Regeneration**
+   - *Issue Identified:* In the transfer form, the idempotency UUID was being regenerated on every input keystroke (`onChange`). If network dropped during submission, replay protection was lost.
+   - *Fix:* Idempotency keys are now held stable across input changes and retries, regenerating strictly after a successful transfer or explicit form reset.
+
+3. **Replaced Insecure `window.prompt()` in Admin UI**
+   - *Issue Identified:* The onboarding rejection button used `window.prompt()`, which is blocked by modern browsers in iframes and poses security risks.
+   - *Fix:* Built a clean inline rejection form inside the table with auto-focus, real-time reason validation, and Confirm/Cancel actions.
+
+4. **Added Strict Non-Negative Balance Guard**
+   - *Issue Identified:* `nextBalance()` in the money calculation library computed `current - amount` without an explicit guard before writing to ledger projections.
+   - *Fix:* Added an explicit check throwing an `INSUFFICIENT_FUNDS` error if a debit would ever result in a negative balance.
+
+5. **Strict Content-Type Validation (HTTP 415)**
+   - Added middleware ensuring `POST`, `PATCH`, and `PUT` requests with payloads provide `application/json`, returning clean 415 errors instead of unhelpful 400 validation failures.
+
+6. **Cleaned Typography & Mojibake Encoding**
+   - Cleaned all corrupt character sequences (`â€”`, `â†—`, `Â·`, etc.) across all React views so typography renders cleanly.
+
+---
+
 ## 🚀 Key Problems Solved & Technical Highlights
 
 ### 1. Architectural Decoupling & Clean Monorepo Structure
@@ -84,8 +113,8 @@ You can test the live application at [https://snovasysfrontend.vercel.app](https
 | Role | Email | Password | Starting Balance | Features to Test |
 |---|---|---|---|---|
 | **Administrator** | `admin@example.test` | `rukus-admin-password` | *N/A (Admin)* | Audit logs, Onboarding review, System-wide ledger integrity, Role management |
-| **Demo User** | `demo@example.test` | `demo-user-password-please-change` | **$1,000.00** | Internal money transfer, Idempotency replay, Personal ledger review |
-| **Recipient** | `recipient@example.test` | `demo-recipient-password-change-me` | **$250.00** | Receiving transfers, Real-time balance updates |
+| **Demo User** | `demo@example.test` | `rukus_demo` | **₹1,000.00** | Internal money transfer, Idempotency replay, Personal ledger review |
+| **Recipient** | `recipient@example.test` | `rukus_recipient` | **₹250.00** | Receiving transfers, Real-time balance updates |
 
 *Note: You can also register a brand new identity directly in the UI. New accounts submit a simulated onboarding application that can be reviewed and approved by logging in as Admin.*
 
@@ -238,14 +267,6 @@ npm.cmd run verify:deployment
 ```
 The script performs live verification of:
 - Public `/healthz` and `/readyz` endpoints
-- Admin authentication and RBAC checks
-- User registration and onboarding submission
-- Administrator onboarding approval
-- Transfer creation, row locking, and balance balancing
-- Append-only immutability and ledger integrity verification
-
----
-
-## 📄 License & Safety Disclaimer
-
-This project is a reference implementation demonstration using synthetic data. It has no integration with real banking rails, payment networks, KYC providers, or real funds.
+- Authentication token issuance & cookie rotation
+- Ledger double-entry posting and balance consistency
+- Deterministic transfer idempotency
