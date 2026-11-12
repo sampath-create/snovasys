@@ -16,20 +16,25 @@ export function parseAmountToCents(value) {
   return cents;
 }
 
-export function formatCents(cents, currency = 'USD') {
+export function formatCents(cents, currency = 'INR') {
   const amount = typeof cents === 'bigint' ? cents : BigInt(cents);
   const negative = amount < 0n;
   const absolute = negative ? -amount : amount;
   const whole = absolute / 100n;
   const fraction = String(absolute % 100n).padStart(2, '0');
-  return `${negative ? '-' : ''}${currency} ${whole.toString()}.${fraction}`;
+  const symbol = currency === 'INR' ? '₹' : `${currency} `;
+  return `${negative ? '-' : ''}${symbol}${whole.toString()}.${fraction}`;
 }
 
 export function nextBalance(currentBalanceCents, side, amountCents) {
   const current = BigInt(currentBalanceCents);
   const amount = BigInt(amountCents);
   if (amount <= 0n) throw new AppError(400, 'VALIDATION_ERROR', 'Ledger amount must be positive.');
-  if (side === 'DEBIT') return current - amount;
+  if (side === 'DEBIT') {
+    const next = current - amount;
+    if (next < 0n) throw new AppError(422, 'INSUFFICIENT_FUNDS', 'Insufficient funds for this transaction.');
+    return next;
+  }
   if (side === 'CREDIT') return current + amount;
   throw new AppError(400, 'VALIDATION_ERROR', 'Ledger side must be DEBIT or CREDIT.');
 }

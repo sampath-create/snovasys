@@ -38,6 +38,18 @@ export function createApp({ redisClient = null } = {}) {
     methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Bootstrap-Token', 'X-Request-Id'],
   }));
+  app.use((req, res, next) => {
+    if (['POST', 'PATCH', 'PUT'].includes(req.method) && req.headers['content-length'] && req.headers['content-length'] !== '0') {
+      if (!req.is('application/json')) {
+        return res.status(415).json({
+          success: false,
+          data: null,
+          error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Content-Type must be application/json.', details: null },
+        });
+      }
+    }
+    next();
+  });
   app.use(express.json({ limit: '32kb' }));
   app.use(cookieParser());
   app.use((req, res, next) => {

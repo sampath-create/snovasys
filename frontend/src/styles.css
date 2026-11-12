@@ -1632,6 +1632,22 @@ td {
 .action-cell {
   display: flex;
   gap: 12px;
+  align-items: center;
+}
+
+.reject-inline-form {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.reject-input {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--c-slate-dark);
+  background: var(--c-card-dark);
+  color: var(--c-white);
+  border-radius: 4px;
 }
 
 .text-action {

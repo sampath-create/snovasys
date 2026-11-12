@@ -88,7 +88,7 @@ export default function LandingPage({ onTry }) {
             {/* Metric ribbon */}
             <div className="edgar-metrics-ribbon">
               <div className="metric-box">
-                <div className="metric-val">$0.00</div>
+                <div className="metric-val">₹0₹250.00</div>
                 <div className="metric-lbl">Ledger Discrepancy Tolerance</div>
               </div>
               <div className="metric-divider" />
@@ -143,10 +143,10 @@ export default function LandingPage({ onTry }) {
             <div className="demo-cred-card">
               <div className="cred-badge user">PRE-FUNDED SOURCE</div>
               <h3>Demo Account Holder</h3>
-              <p>Funded with $1,000.00 synthetic balance. Execute real-time double-entry internal transfers, test idempotency replays, and inspect your personal ledger history.</p>
+              <p>Funded with $1₹1,000.00 synthetic balance. Execute real-time double-entry internal transfers, test idempotency replays, and inspect your personal ledger history.</p>
               <div className="cred-code-block">
                 <div><span>Email:</span> <code>demo@example.test</code></div>
-                <div><span>Password:</span> <code>demo-user-password-please-change</code></div>
+                <div><span>Password:</span> <code>rukus_demo</code></div>
               </div>
               <button className="link-btn black full" onClick={() => onTry('login')}>
                 <span className="link-btn-text">Sign In As User →</span>

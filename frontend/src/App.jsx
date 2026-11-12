@@ -6,9 +6,9 @@ const money = (cents) => {
   const value = BigInt(cents ?? 0);
   const negative = value < 0n;
   const absolute = negative ? -value : value;
-  const whole = new Intl.NumberFormat('en-US').format(absolute / 100n);
+  const whole = new Intl.NumberFormat('en-IN').format(absolute / 100n);
   const fraction = String(absolute % 100n).padStart(2, '0');
-  return `${negative ? '-' : ''}$${whole}.${fraction}`;
+  return `${negative ? '-' : ''}₹${whole}.${fraction}`;
 };
 const date = (value) => value ? new Date(value).toLocaleString() : '—';
 
@@ -220,7 +220,7 @@ function Transfer({ run }) {
     const data = await api('/api/transfers', { method: 'POST', body: { fromAccountId, recipientAccountNumber, amount, idempotencyKey } });
     setResult(data.transfer); setAmount(''); setRecipientAccountNumber(''); setConfirmation(false); setIdempotencyKey(crypto.randomUUID());
   }, 'Transfer completed and posted to the ledger.'); };
-  return <div className="transfer-layout"><div className="panel"><p className="eyebrow">INTERNAL TRANSFER</p><h3>Move demo funds</h3><p className="muted">This operation only moves synthetic balances between BalanceVault demo accounts. It does not call a bank or payment network.</p><form onSubmit={submit}><label className="field"><span>Source account</span><select value={fromAccountId} onChange={(e) => { setFromAccountId(e.target.value); setIdempotencyKey(crypto.randomUUID()); }} required><option value="">Select an active account</option>{accounts.filter((a) => a.status === 'ACTIVE').map((a) => <option key={a.id} value={a.id}>{a.accountNumber} · {money(a.currentBalanceCents)}</option>)}</select></label><Field label="Recipient account number" value={recipientAccountNumber} onChange={(e) => { setRecipientAccountNumber(e.target.value); setIdempotencyKey(crypto.randomUUID()); }} placeholder="BV-…" required /><Field label="Amount (USD)" inputMode="decimal" value={amount} onChange={(e) => { setAmount(e.target.value); setIdempotencyKey(crypto.randomUUID()); }} placeholder="25.00" required pattern="[0-9]+(\.[0-9]{1,2})?" /><label className="check-field"><input type="checkbox" checked={confirmation} onChange={(e) => setConfirmation(e.target.checked)} /><span>I confirm this synthetic demo transfer.</span></label><button className="primary" disabled={!confirmation || !fromAccountId}>Review and transfer</button></form></div><div className="panel transfer-note"><div className="note-icon">↗</div><h3>Ledger-backed movement</h3><p>Each completed transfer creates one journal entry with matching debit and credit lines, a per-account sequence, and a resulting balance snapshot.</p><div className="rule-list"><span>01 · Ownership validated</span><span>02 · Accounts row-locked</span><span>03 · Idempotency enforced</span><span>04 · Balanced journal posted</span></div>{result && <div className="result-block"><span className="pill good">{result.status}</span><small>Transfer reference</small><code>{result.id}</code></div>}</div></div>;
+  return <div className="transfer-layout"><div className="panel"><p className="eyebrow">INTERNAL TRANSFER</p><h3>Move demo funds</h3><p className="muted">This operation only moves synthetic balances between BalanceVault demo accounts. It does not call a bank or payment network.</p><form onSubmit={submit}><label className="field"><span>Source account</span><select value={fromAccountId} onChange={(e) => setFromAccountId(e.target.value)} required><option value="">Select an active account</option>{accounts.filter((a) => a.status === 'ACTIVE').map((a) => <option key={a.id} value={a.id}>{a.accountNumber} · {money(a.currentBalanceCents)}</option>)}</select></label><Field label="Recipient account number" value={recipientAccountNumber} onChange={(e) => setRecipientAccountNumber(e.target.value)} placeholder="BV-…" required /><Field label="Amount (INR - ₹)" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100.00" required pattern="[0-9]+(\.[0-9]{1,2})?" /><label className="check-field"><input type="checkbox" checked={confirmation} onChange={(e) => setConfirmation(e.target.checked)} /><span>I confirm this synthetic demo transfer.</span></label><button className="primary" disabled={!confirmation || !fromAccountId}>Review and transfer</button></form></div><div className="panel transfer-note"><div className="note-icon">↗</div><h3>Ledger-backed movement</h3><p>Each completed transfer creates one journal entry with matching debit and credit lines, a per-account sequence, and a resulting balance snapshot.</p><div className="rule-list"><span>01 · Ownership validated</span><span>02 · Accounts row-locked</span><span>03 · Idempotency enforced</span><span>04 · Balanced journal posted</span></div>{result && <div className="result-block"><span className="pill good">{result.status}</span><small>Transfer reference</small><code>{result.id}</code></div>}</div></div>;
 }
 
 function Ledger({ run }) {
@@ -239,6 +239,8 @@ function LedgerTable({ entries = [] }) {
 function Admin({ run }) {
   const [users, setUsers] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [logs, setLogs] = useState([]);
   const [summary, setSummary] = useState(null);
   const [search, setSearch] = useState('');
@@ -278,7 +280,37 @@ function Admin({ run }) {
       <div className="search-row"><input aria-label="Search users by email" placeholder="Search by email" value={search} onChange={(e) => setSearch(e.target.value)} /><select aria-label="Filter users by status" value={userStatus} onChange={(e) => setUserStatus(e.target.value)}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option></select><button className="secondary" onClick={load}>Filter</button></div>
       <div className="table-wrap"><table><thead><tr><th>User</th><th>Status</th><th>Roles</th><th>Account(s)</th><th>Actions</th></tr></thead><tbody>{users.map((u) => <tr key={u.id}><td>{u.email}</td><td><span className={`pill ${u.status === 'ACTIVE' ? 'good' : 'pending'}`}>{u.status}</span></td><td>{u.roles.join(', ')}</td><td>{u.accounts.length}</td><td className="action-cell"><button className="text-action" onClick={() => action(() => api(`/api/admin/users/${u.id}/status`, { method: 'PATCH', body: { status: u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' } }), 'User status updated.')}>{u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}</button><button className="text-action" onClick={() => action(() => api(`/api/admin/users/${u.id}/roles`, { method: 'PATCH', body: { roles: u.roles.includes('ADMIN') ? ['USER'] : ['USER', 'ADMIN'] } }), 'User roles updated.')}>{u.roles.includes('ADMIN') ? 'Remove admin' : 'Make admin'}</button></td></tr>)}</tbody></table></div>
     </div>
-    <div className="panel"><p className="eyebrow">ACCOUNT ACTIVATION</p><h3>Onboarding applications</h3><div className="table-wrap"><table><thead><tr><th>Applicant</th><th>Submitted</th><th>State</th><th>Decision</th></tr></thead><tbody>{applications.map((a) => <tr key={a.id}><td>{a.user?.email}</td><td>{date(a.submittedAt)}</td><td><span className="pill pending">{a.state}</span></td><td className="action-cell">{['SUBMITTED', 'UNDER_REVIEW'].includes(a.state) && <><button className="text-action" onClick={() => action(() => api(`/api/admin/onboarding/${a.id}`, { method: 'PATCH', body: { status: 'APPROVED' } }), 'Application approved.')}>Approve</button><button className="text-action danger-text" onClick={() => { const reason = window.prompt('Reason for rejection (required):'); if (reason) action(() => api(`/api/admin/onboarding/${a.id}`, { method: 'PATCH', body: { status: 'REJECTED', reason } }), 'Application rejected.'); }}>Reject</button></>}</td></tr>)}</tbody></table></div></div>
+    <div className="panel"><p className="eyebrow">ACCOUNT ACTIVATION</p><h3>Onboarding applications</h3><div className="table-wrap"><table><thead><tr><th>Applicant</th><th>Submitted</th><th>State</th><th>Decision</th></tr></thead><tbody>{applications.map((a) => <tr key={a.id}><td>{a.user?.email}</td><td>{date(a.submittedAt)}</td><td><span className="pill pending">{a.state}</span></td><td className="action-cell">{['SUBMITTED', 'UNDER_REVIEW'].includes(a.state) && <><button className="text-action" onClick={() => action(() => api(`/api/admin/onboarding/${a.id}`, { method: 'PATCH', body: { status: 'APPROVED' } }), 'Application approved.')}>Approve</button>{rejectingId === a.id ? (
+                      <span className="reject-inline-form">
+                        <input
+                          type="text"
+                          className="reject-input"
+                          placeholder="Rejection reason..."
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          autoFocus
+                        />
+                        <button
+                          className="text-action danger-text"
+                          disabled={!rejectReason.trim()}
+                          onClick={() => {
+                            action(() => api(`/api/admin/onboarding/${a.id}`, { method: 'PATCH', body: { status: 'REJECTED', reason: rejectReason.trim() } }), 'Application rejected.');
+                            setRejectingId(null);
+                            setRejectReason('');
+                          }}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          className="text-action"
+                          onClick={() => { setRejectingId(null); setRejectReason(''); }}
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button className="text-action danger-text" onClick={() => { setRejectingId(a.id); setRejectReason(''); }}>Reject</button>
+                    )}</>}</td></tr>)}</tbody></table></div></div>
     <div className="panel">
       <div className="panel-head"><div><p className="eyebrow">APPEND-ONLY AUDIT TRAIL</p><h3>Audit events</h3></div></div>
       <div className="search-row"><input aria-label="Filter audit action" placeholder="Action, e.g. TRANSFER_CREATED" value={auditAction} onChange={(e) => { setAuditAction(e.target.value); setAuditPage(1); }} /><input aria-label="Filter audit entity type" placeholder="Entity type" value={auditEntity} onChange={(e) => { setAuditEntity(e.target.value); setAuditPage(1); }} /><button className="secondary" onClick={() => { setAuditPage(1); load(); }}>Apply</button></div>
